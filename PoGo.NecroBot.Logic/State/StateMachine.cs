@@ -110,6 +110,12 @@ namespace PoGo.NecroBot.Logic.State
                         Environment.Exit(0);
                     }
                 }
+                catch (APIBadRequestException ex)
+                {
+                    Logger.Write("Bad Request - If you see this message please conpy error log & screenshot send back to dev asap.", level: LogLevel.Error);
+                    Logger.Write( ex.StackTrace, level: LogLevel.Error);
+                    state = new LoginState();
+                }
                 catch (AccountNotVerifiedException ex)
                 {
                     if (session.LogicSettings.AllowMultipleBot)
@@ -146,14 +152,21 @@ namespace PoGo.NecroBot.Logic.State
                         {
                             PushNotificationClient.SendNotification(session, $"{se.MatchedRule} - {session.Settings.GoogleUsername}{session.Settings.PtcUsername}", "This bot has reach limit, it will be blocked for 60 mins for safety.", true);
                             session.BlockCurrentBot(60);
+                            if (!session.LogicSettings.AllowMultipleBot)
+                            {
+                                session.EventDispatcher.Send(new WarnEvent() { Message = "You reach limited. bot will sleep for 60 min" });
+                                await Task.Delay(60 * 1000 * 60);
+                            }
                         }
-                        if (session.LogicSettings.MultipleBotConfig.StartFromDefaultLocation)
-                        {
-                            session.ReInitSessionWithNextBot(null, globalSettings.LocationConfig.DefaultLatitude, globalSettings.LocationConfig.DefaultLongitude, session.Client.CurrentAltitude);
-                        }
-                        else
-                        {
-                            session.ReInitSessionWithNextBot(); //current location
+                        else {
+                            if (session.LogicSettings.MultipleBotConfig.StartFromDefaultLocation)
+                            {
+                                session.ReInitSessionWithNextBot(null, globalSettings.LocationConfig.DefaultLatitude, globalSettings.LocationConfig.DefaultLongitude, session.Client.CurrentAltitude);
+                            }
+                            else
+                            {
+                                session.ReInitSessionWithNextBot(); //current location
+                            }
                         }
                     }
                     //return to login state
